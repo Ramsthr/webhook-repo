@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Actions Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .action {
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>GitHub Actions Monitor</h1>
+    <div id="actions"></div>
+
+    <script>
+        async function fetchActions() {
+            try {
+                const response = await fetch('/webhook/actions');
+                if (!response.ok) throw new Error('Network response was not ok');
+                const actions = await response.json();
+                const actionsDiv = document.getElementById('actions');
+                actionsDiv.innerHTML = '';
+
+                actions.forEach(action => {
+                    let message;
+                    const timestamp = action.timestamp;
+
+                    if (action.action === 'PUSH') {
+                        message = `${action.author} pushed to ${action.to_branch} on ${timestamp}`;
+                    } else if (action.action === 'PULL_REQUEST') {
+                        message = `${action.author} submitted a pull request from ${action.from_branch} to ${action.to_branch} on ${timestamp}`;
+                    } else if (action.action === 'MERGE') {
+                        message = `${action.author} merged branch ${action.from_branch} to ${action.to_branch} on ${timestamp}`;
+                    }
+
+                    const p = document.createElement('div');
+                    p.className = 'action';
+                    p.textContent = message;
+                    actionsDiv.appendChild(p);
+                });
+            } catch (error) {
+                console.error('Error fetching actions:', error);
+            }
+        }
+
+        setInterval(fetchActions, 15000); // Poll every 15 seconds
+        fetchActions(); // Initial fetch
+    </script>
+</body>
+</html>
+
