@@ -16,37 +16,23 @@ def receiver():
     print(f"Received webhook data: {data}")
 
     # Extract common information
-    author = data['pusher']['name'] if 'pusher' in data else data['sender']['login']
-    timestamp = datetime.now(timezone.utc)
+    # author = data['pusher']['name'] if 'pusher' in data else data['sender']['login']
+    timestamp_str = data['timestamp']
+    timestamp_dt = datetime.fromisoformat(timestamp_str)
+
+    # Convert the timestamp to UTC
+    timestamp_utc = timestamp_dt.astimezone(timezone.utc)
+
 
     # Initialize payload
     payload = {
-        'request_id': None,
-        'author': author,
-        'action': None,
-        'from_branch': None,
-        'to_branch': None,
-        'timestamp': timestamp
+        'request_id':data['request_id'],
+        'author': data['author'],
+        'action': data['action'],
+        'from_branch': data['from_branch'],
+        'to_branch': data['to_branch'],
+        'timestamp': timestamp_utc
     }
-
-    # Determine the event type
-    if 'after' in data and 'ref' in data:
-        payload['action'] = 'PUSH'
-        payload['request_id'] = data['after']
-        payload['to_branch'] = data['ref'].split('/')[-1]
-    elif 'pull_request' in data:
-        payload['action'] = data['action'].upper()
-        payload['request_id'] = data['pull_request']['id']
-        payload['from_branch'] = data['pull_request']['head']['ref']
-        payload['to_branch'] = data['pull_request']['base']['ref']
-        if data['action'] == 'closed' and data['pull_request']['merged']:  # Check for merge event
-         payload['action'] = 'MERGE'
-    # elif 'ref' in data and 'action' in data:
-    #     payload['action'] = data['action'].upper()
-    #     payload['from_branch'] = data['ref']
-    #     payload['to_branch'] = data['base']['ref']
-    else:
-        return jsonify({'message':'Unsupported event type'}), 400
 
     # Insert the payload into MongoDB
     if payload['action'] in ['PUSH','PULL_REQUEST','MERGE']:
@@ -58,11 +44,8 @@ def receiver():
 @webhook.route('/actions', methods=["GET"])
 def get_actions():
     actions = mongo.db.actions.find().sort("timestamp", -1).limit(10)  # Fetch the latest 10 actions
-    print(f"Fetched actions: {mongo.db.actions}")
-    print(f"Fetched actions: {actions}")
     result = []
     for action in actions:
-        print(format_datetime(action.get('timestamp')))
         result.append({
             'author': action.get('author'),
             'action': action.get('action'),
